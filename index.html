@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Comparison App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .scroll-container {
+      overflow-x: auto;
+      overflow-y: hidden;
+      width: 100%;
+      border: 1px solid #ccc;
+    }
+
+    .image-container {
+      position: relative;
+      display: inline-block;
+      white-space: nowrap;
+    }
+
+    .image-container img {
+      display: block;
+      width: auto;
+      height: auto;
+      max-width: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      transition: filter 0.3s ease, opacity 0.3s ease;
+    }
+
+    .controls-container {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      width: 100%;
+      height: 82px; /* Matches the height of the controls panel plus padding */
+      padding: 10px 0; /* Adds vertical padding */
+    }
+
+    .controls, .settings-icon-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .controls {
+      display: flex;
+      gap: 20px;
+      background-color: white;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+
+    .controls.hidden {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    .settings-icon-container {
+      display: none;
+      background-color: transparent; /* Makes the background transparent */
+    }
+
+    .settings-icon-container.visible {
+      display: flex;
+    }
+
+    .settings-icon {
+      cursor: pointer;
+      width: 24px;
+      height: 24px;
+      fill: #007bff;
+      transition: transform 0.3s ease;
+    }
+
+    .settings-icon:hover {
+      transform: scale(1.1);
+    }
+
+    .drop-zone {
+      width: 400px; /* Increased width for the drag-and-drop area */
+      padding: 10px 20px;
+      border: 2px dashed #007bff;
+      border-radius: 5px;
+      text-align: center;
+      cursor: pointer;
+      background-color: #f9f9f9;
+    }
+
+    .drop-zone.drag-over {
+      background-color: #e0f7ff;
+      border-color: #0056b3;
+    }
+
+    .drop-zone input[type="file"] {
+      display: none;
+    }
+
+    .file-names {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #555;
+      text-align: left;
+    }
+
+    .file-names span {
+      display: block;
+      white-space: nowrap; /* Prevents wrapping */
+      overflow: hidden; /* Hides overflow */
+      text-overflow: ellipsis; /* Adds ellipsis for overflow */
+    }
+
+    .slider-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .slider-container input[type="range"] {
+      width: 300px;
+    }
+
+    .button {
+      padding: 5px 10px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .button:hover {
+      background-color: #0056b3;
+    }
+
+    .minimize-button {
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-size: 16px;
+      color: #007bff;
+      padding: 0;
+    }
+
+    .minimize-button:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="controls-container">
+      <div class="controls" id="controls">
+        <div class="drop-zone" id="drop-zone">
+          Drag and drop one or two images here, or click to select
+          <input type="file" id="file-input" accept="image/*" multiple>
+          <div class="file-names" id="file-names">
+            <span>File 1: No file selected</span>
+            <span>File 2: No file selected</span>
+          </div>
+        </div>
+        <button class="minimize-button" id="minimize-button">Minimize</button>
+        <button class="button" id="swap-button">Swap Files</button>
+        <label>
+          <input type="checkbox" id="tint-checkbox">
+          Tint Images
+        </label>
+        <div class="slider-container">
+          <label for="opacity-slider">Opacity</label>
+          <input type="range" id="opacity-slider" min="0" max="100" value="50">
+        </div>
+      </div>
+      <div class="settings-icon-container" id="settings-icon-container">
+        <svg class="settings-icon" id="settings-icon" xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#007bff">
+          <path d="m370-80-16-128q-13-5-24.5-12T307-235l-119 50L78-375l103-78q-1-7-1-13.5v-27q0-6.5 1-13.5L78-585l110-190 119 50q11-8 23-15t24-12l16-128h220l16 128q13 5 24.5 12t22.5 15l119-50 110 190-103 78q1 7 1 13.5v27q0 6.5-2 13.5l103 78-110 190-118-50q-11 8-23 15t-24 12L590-80H370Zm70-80h79l14-106q31-8 57.5-23.5T639-327l99 41 39-68-86-65q5-14 7-29.5t2-31.5q0-16-2-31.5t-7-29.5l86-65-39-68-99 42q-22-23-48.5-38.5T533-694l-13-106h-79l-14 106q-31-8-57.5-23.5T321-633l-99-41-39 68 86 64q-5 15-7 30t-2 32q0 16 2 31t7 30l-86 65 39 68 99-42q22 23 48.5 38.5T427-266l13 106Zm42-180q58 0 99-41t41-99q0-58-41-99t-99-41q-59 0-99.5 41T342-480q0 58 40.5 99t99.5 41Zm-2-140Z"/>
+        </svg>
+      </div>
+    </div>
+    <div class="scroll-container">
+      <div class="image-container" id="image-container">
+        <img id="img1" style="opacity: 0.5;">
+        <img id="img2" style="opacity: 0.5;">
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const controls = document.getElementById('controls');
+    const settingsIconContainer = document.getElementById('settings-icon-container');
+    const settingsIcon = document.getElementById('settings-icon');
+    const minimizeButton = document.getElementById('minimize-button');
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileNames = document.getElementById('file-names');
+    const img1 = document.getElementById('img1');
+    const img2 = document.getElementById('img2');
+    const opacitySlider = document.getElementById('opacity-slider');
+    const swapButton = document.getElementById('swap-button');
+    const tintCheckbox = document.getElementById('tint-checkbox');
+    const imageContainer = document.getElementById('image-container');
+
+    let state = 0; // FSM state: 0 = no files, 1 = file 1 selected, 2 = file 1 and file 2 selected
+
+    minimizeButton.addEventListener('click', () => {
+      controls.classList.add('hidden');
+      settingsIconContainer.classList.add('visible');
+    });
+
+    settingsIcon.addEventListener('click', () => {
+      controls.classList.remove('hidden');
+      settingsIconContainer.classList.remove('visible');
+    });
+
+    function updateFileNames(file1Name = "No file selected", file2Name = "No file selected") {
+      fileNames.innerHTML = `<span>File 1: ${file1Name}</span><span>File 2: ${file2Name}</span>`;
+    }
+
+    function handleFiles(files) {
+      if (files.length === 2) {
+        state = 2;
+        updateFileNames(files[0].name, files[1].name);
+        loadImage(img1, files[0]);
+        loadImage(img2, files[1]);
+        img2.style.display = "block";
+      } else if (files.length === 1) {
+        const file = files[0];
+        if (state === 0) {
+          state = 1;
+          updateFileNames(file.name, "No file selected");
+          loadImage(img1, file);
+          img2.style.display = "none";
+        } else if (state === 1) {
+          state = 2;
+          updateFileNames(fileNames.children[0].textContent.split(": ")[1], file.name);
+          loadImage(img2, file);
+          img2.style.display = "block";
+        } else if (state === 2) {
+          // Reset to state 1 when a third file is added
+          state = 1;
+          updateFileNames(file.name, "No file selected");
+          loadImage(img1, file);
+          clearImage(img2);
+          img2.style.display = "none";
+        }
+      } else {
+        alert("Please drag and drop one or two images.");
+      }
+    }
+
+    function loadImage(imgElement, file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        imgElement.src = e.target.result;
+        imgElement.onload = resizeImages;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearImage(imgElement) {
+      imgElement.src = "";
+    }
+
+    function resizeImages() {
+      if (img1.src) {
+        const width1 = img1.naturalWidth;
+        const height1 = img1.naturalHeight;
+
+        img1.width = width1;
+        img1.height = height1;
+
+        if (img2.src) {
+          const width2 = img2.naturalWidth;
+          const height2 = img2.naturalHeight;
+
+          const targetWidth = Math.max(width1, width2);
+          const targetHeight = Math.max(height1, height2);
+
+          img1.width = targetWidth;
+          img1.height = targetHeight;
+          img2.width = targetWidth;
+          img2.height = targetHeight;
+
+          imageContainer.style.width = `${targetWidth}px`;
+          imageContainer.style.height = `${targetHeight}px`;
+        } else {
+          imageContainer.style.width = `${width1}px`;
+          imageContainer.style.height = `${height1}px`;
+        }
+      }
+    }
+
+    function swapFiles() {
+      if (state === 2) {
+        const tempSrc = img1.src;
+        img1.src = img2.src;
+        img2.src = tempSrc;
+
+        const file1Name = fileNames.children[0].textContent.split(": ")[1];
+        const file2Name = fileNames.children[1].textContent.split(": ")[1];
+        updateFileNames(file2Name, file1Name);
+      } else {
+        alert("Both File 1 and File 2 must be selected to swap.");
+      }
+    }
+
+    function toggleTint() {
+      if (tintCheckbox.checked) {
+        if (state >= 1) {
+          img1.style.filter = "grayscale(100%) brightness(1.2) sepia(1) hue-rotate(-50deg) saturate(6)";
+        }
+        if (state === 2) {
+          img2.style.filter = "grayscale(100%) brightness(1.2) sepia(1) hue-rotate(90deg) saturate(5)";
+        }
+      } else {
+        img1.style.filter = "none";
+        img2.style.filter = "none";
+      }
+    }
+
+    dropZone.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      dropZone.classList.add("drag-over");
+    });
+
+    dropZone.addEventListener("dragleave", () => {
+      dropZone.classList.remove("drag-over");
+    });
+
+    dropZone.addEventListener("drop", (event) => {
+      event.preventDefault();
+      dropZone.classList.remove("drag-over");
+      const files = Array.from(event.dataTransfer.files).filter((file) =>
+        file.type.startsWith("image/")
+      );
+      handleFiles(files);
+    });
+
+    dropZone.addEventListener("click", () => {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener("change", (event) => {
+      const files = Array.from(event.target.files).filter((file) =>
+        file.type.startsWith("image/")
+      );
+      handleFiles(files);
+
+      // Reset the file input value to ensure "change" fires for the same file
+      fileInput.value = "";
+    });
+
+    swapButton.addEventListener("click", swapFiles);
+    tintCheckbox.addEventListener("change", toggleTint);
+
+    opacitySlider.addEventListener("input", (event) => {
+      const value = event.target.value / 100;
+      img1.style.opacity = 1 - value;
+      img2.style.opacity = value;
+    });
+  </script>
+</body>
+</html>
